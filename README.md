@@ -16,7 +16,7 @@
 dsh plugin --profile web add whale-girl
 
 # 2) 钱包层，二选一：
-dsh plugin --profile web add "github:<your-name>/whale-purse"     # 从 GitHub
+dsh plugin --profile web add "github:Kaiii521/whale-purse"        # 从 GitHub
 dsh plugin --profile web add "link:C:\path\to\whale-purse"        # 从本地 clone
 ```
 
