@@ -1,0 +1,5 @@
+# whale-purse bundle patch：向 web 组合挂载「鲸鱼钱包」。
+# Node half 读余额/记账/算峰谷并经 /whale-purse/* 下发；client half 把这些画到 whale-girl 桌宠身上。
+- insert:
+    - id: whale-purse
+      name: whale-purse
