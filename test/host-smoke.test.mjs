@@ -63,6 +63,7 @@ test('注册三条路由并返回健康快照', async () => {
   assert.equal(res.status, 200)
   const body = getJson(res)
   assert.equal(body.ok, true)
+  assert.equal(typeof body.startedAt, 'number') // 宿主实例标识（客户端据此隔离基线）
   assert.equal(body.config.refreshMs, DEFAULTS.refreshMs)
   assert.equal(typeof body.peak.peak, 'boolean')
   assert.equal(body.history.length, 7)
@@ -72,6 +73,30 @@ test('注册三条路由并返回健康快照', async () => {
   // 没有凭据服务时余额降级为「拿不到」，不是 500
   assert.ok(body.balance.error)
   assert.match(body.balanceError, /凭据|账号/)
+})
+
+test('客户端自报诊断：查询串被回显到 diag', async () => {
+  const harness = fakeCtx()
+  harness.ctx.get = (name) => (name === 'webServer' ? harness.webServer : undefined)
+  apply(harness.ctx)
+  const res = fakeRes()
+  await harness.routes.get('/whale-purse/state').handler({
+    method: 'GET',
+    headers: {},
+    url: '/whale-purse/state?v=0.2.2&host=1793878000000&seen=3&seq=4&toast=1&err=toast:boom',
+  }, res)
+  assert.equal(res.status, 200)
+  const body = getJson(res)
+  assert.equal(body.diag.v, '0.2.2')
+  assert.equal(body.diag.host, '1793878000000')
+  assert.equal(body.diag.seen, '3')
+  assert.equal(body.diag.seq, '4')
+  assert.equal(body.diag.toast, '1')
+  assert.equal(body.diag.err, 'toast:boom')
+  // 第二次不带查询串时，diag 保留上一次上报
+  const res2 = fakeRes()
+  await harness.routes.get('/whale-purse/state').handler({ method: 'GET', headers: {} }, res2)
+  assert.equal(getJson(res2).diag.v, '0.2.2')
 })
 
 test('POST /config 收敛越界值并落盘', async () => {

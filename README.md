@@ -72,9 +72,11 @@ dsh plugin --profile web add "link:C:\path\to\whale-purse"        # 从本地 cl
 
 | 路由 | 方法 | 作用 |
 |---|---|---|
-| `/whale-purse/state` | GET | 快照（余额 / 今日 / 本轮 / 上一步 / 峰谷 / 7 天 / 配置） |
+| `/whale-purse/state` | GET | 快照（余额 / 今日 / 本轮 / 上一步 / 峰谷 / 7 天 / 配置 / `startedAt`），并回显客户端自报的 `diag` |
 | `/whale-purse/config` | GET·POST | 读 / 改配置 |
 | `/whale-purse/refresh` | POST | 强制刷一次余额 |
+
+`startedAt` 是宿主实例标识：进程重启即变化。客户端据此隔离「已经看过哪些步/轮」的基线 —— 计数器是进程内的，重启归零；只按数值比较会永久错位。客户端每次拉取还会把 `v`（bundle 版本）/ `host` / `seen` / `seq` / `toast` / `err` 带在查询串上，宿主回显成 `diag`，排查「界面没反应」时不用让用户开控制台。
 
 ## 结构
 
@@ -85,6 +87,8 @@ lib/pricing.mjs    峰谷规则 + 价目表 + 成本换算（纯函数）
 lib/accounting.mjs 余额观测记账（纯函数）
 test/              单元测试（node:test）
 ```
+
+版本与修复记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ```sh
 node --test --test-isolation=none test/*.test.mjs   # 20 个用例：峰谷边界、周末/节假日、成本换算、记账、路由冒烟
@@ -102,6 +106,7 @@ node --test --test-isolation=none test/*.test.mjs   # 20 个用例：峰谷边�
 | 「今日已用」是 0 或明显偏小 | 按余额下降观测：**装上之前**花掉的不回溯，且每天从首次观测起算 | 正常现象，卡片副行有「HH:MM 起观测」；次日就是完整一天 |
 | 充值后「今日已用」没变 | 充值/赠金不算消费 | 正常：单独显示在余额行（充 / 赠），不会冲掉已记的消费 |
 | 每步 `+¥0.00x` 不出现 | 这一步还没跑完（没有 usage 事件）；`stepToast` 被关掉；或客户端是旧 bundle | 等这一步结束；⚙ 里确认「每步浮现花费」；`Ctrl+R` |
+| 重启一次之后每步浮字就再也不出现 | 0.2.3 之前：宿主计数器归零、而客户端基线存在 localStorage 里不归零，只按数值比较会永久错位 | 已修（按 `startedAt` 隔离实例）。旧版本可先 `localStorage.removeItem('whale-purse:hints')` 再刷新 |
 | 每步金额和官方账单对不上 | 每步是 token × 价目表的**估算**，还受缓存命中率影响 | 以「今日已用」（余额差）为准，每步数字只用来感知量级 |
 | 余额更新慢半拍 | 25 秒缓存，防止把接口打爆 | 卡片里点「刷新」强制拉一次 |
 | 峰谷判定和官网不一致 | 判定按北京时间，不吃本机时区；节假日表按年维护 | 先核对系统时钟；节假日需补 `lib/pricing.mjs` 的 `HOLIDAY_VALLEY`（2026 已全，2027 待补） |
